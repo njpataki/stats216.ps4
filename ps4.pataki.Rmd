@@ -1,0 +1,419 @@
+---
+output: html_document
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      warning=FALSE, message=FALSE, echo=TRUE)
+```
+
+
+#Question 2
+
+a. Generate data for three separable classes
+
+```{r q2a}
+set.seed(101)
+x=matrix(rnorm(60*50),60,50)
+xmean=matrix(rnorm(3,sd=1.5),3,50)
+which=sample(rep(1:3,20),60,replace=FALSE)
+x=x+xmean[which,]
+plot(x, col=which, pch=19)
+```
+\newpage
+
+b. Perform PCA on 60 observations and plot first two PC score vectors
+
+```{r q2b}
+pr.out = prcomp(x, scale=TRUE)
+pc.score1 = pr.out$x[,1]
+pc.score2 = pr.out$x[,2]
+plot(pc.score1,pc.score2,col=which, pch=19, main="PC1 and PC2 Score Vectors")
+```
+\newpage
+
+c. Perform K-means clustering of the observations with K=3. 
+
+```{r q2c1}
+set.seed(100)
+km.out=kmeans(x,3,nstart=20)
+plot(x,col=which,pch=19, main = "K-means cluster analysis: K=3")
+points(x,col=km.out$cluster,cex=2,pch=1,lwd=2)
+```
+
+How well do the clusters obtained in K-means clustering compare to the true class labels?
+
+The plot above has two pieces of information embedded at each observation point. The larger circle represents the cluster k-means has assigned the observation to. The filled-in dot encompassed by the larger circle represents the true class label. These labels are arbitrary in the sense that I assigned them based on a numeric count, i.e. Class Label 1 = black, Class Label 2 = red, and Class Label 3 = green. 
+
+R randomly assigns cluster labels however so I have to make sure the cluster assignments match the class labels. Given this is a small data set I can eyeball the cluster data contained within the kmeans object and reassign the labels appropriately. If the kmeans algorithm happens to assign an observation as cluster 2 but the true class label is 3, I simply reassign that cluster as 3 and reset the color for that observation. 
+
+In the case above the class and cluster labels happen to coincide but in other parts I have to make this exchange. 
+
+As we can see in the plot above K-means clustering with K=3 does a great job clustering these observations into their true groups. 
+
+Let's calculate a table of labels versus cluster numbers, to reveal the spread. 
+
+```{r q2c3}
+cluster.labels=km.out$cluster
+table(data.frame(which, cluster.labels))
+```
+
+Two observations were clustered into the wrong group. The error rate is about 3% which is pretty good but it's fairly arbitrary since we'd woudln't have access to this misclassification rate in the real world. 
+
+d. Perform K-means clustering of the observations with K=2
+
+```{r q2d1, echo=FALSE}
+set.seed(100)
+km.out=kmeans(x,2,nstart=20)
+plot(x,col=km.out$cluster,cex=2,pch=1,lwd=2, main = "K-means cluster analysis: K=2")
+points(x,col=which,pch=19)
+cluster.labels = km.out$cluster
+for (i in 1:60) {
+    if (cluster.labels[i] == 2)  {
+        cluster.labels[i]=1    
+    } else if (cluster.labels[i] == 1) {
+        cluster.labels[i]= 3
+    }      
+}
+points(x,col=cluster.labels,cex=2,pch=1,lwd=2)
+```
+
+This k-means clustered the one class (green) well but assigned pretty much all the other observations into the second cluster. Given we have access to the true class labels (something we would not have generally) it's misclassification error rate will be at least 33%. Let's take a looka at a confusion table and see how the observations were clustered.
+
+``` {rq2d2, echo=FALSE}
+class.labels = c()
+for(i in 1:60) {
+    if (which[i] == 1) {
+        class.labels[i] = "black"
+    } else if (which[i] == 2) {
+        class.labels[i] = "red"
+    } else if (which[i] == 3) {
+        class.labels[i] = "green"
+    }
+}
+cluster = km.out$cluster
+table(data.frame(class.labels, cluster.labels))
+```
+\newpage
+
+Since k-means forces obervations into a cluster we see that observations of the black class are divided into the two clusters in a ratio 3:1 for the green class and red class respectively.
+
+This also brings up an issue central to k-means clustering. When exactly do we know where to stop? That is, how many clusters is appropriate? We'd like to know that our clusters are fairly robust to changes in the data set. So if we clustered n observations and then removed a subgroup of those n observations and reclustered, we'd hope the original assignments were the same (or at least close to the same) but oftentimes this isn't the case. ISLR mentions some techniques due exist for assigning a p-value to a cluster in order to assess whether there is more evidence for the cluster than one would expect due to chance, but that no consensus yet exists on the topic. 
+
+e. Perform K-means clustering of the observations with K=4
+
+```{r q2e, echo=FALSE}
+set.seed(100)
+km.out=kmeans(x,4,nstart=20)
+plot(x,col=km.out$cluster,cex=2,pch=1,lwd=2, main = "K-means cluster analysis: K=4")
+points(x,col=which,pch=19)
+cluster.labels=km.out$cluster
+points(x,col=cluster.labels,cex=2,pch=1,lwd=2)
+```
+
+It's tough to tell what's going on in this clustering now that our number of clusters exceed our observation classes. I also haven't "forced" the clusters into assignments that match observation classes since there's a lot of overlap. How do you begin to try and make sense of this clustering relative to original assignments? Probably a better way to look at the data now is to look at a table.
+
+We've generated this data set so we know that the clusters aren't overly distorted due to outliers but the alorithm does create four centroids and forces every observation into a cluster. Since there are only three "true" classes I assume k-means is now clustering noise in the data.  Again, we'd like to be aware of this fact if we were conducting a real unsupervised learning project. This is another point in favor of being rigorous when using k-means and conducting plenty of tests varying the parameters (e.g. k, linkage, standardizing the variables) and testing the subgroups to get a sense of the robustness of the clusters obtained. 
+\newpage
+
+```{r q2e1, echo=FALSE}
+cluster = km.out$cluster
+class.labels = c()
+for(i in 1:60) {
+    if (which[i] == 1) {
+        class.labels[i] = "black"
+    } else if (which[i] == 2) {
+        class.labels[i] = "red"
+    } else if (which[i] == 3) {
+        class.labels[i] = "green"
+    }
+}
+table(data.frame(class.labels, cluster))
+```
+
+Observations that truly belong to the black class are distributed over three clusters with most of the density concentrated on Cluster 3. Green observations are split over two clusters with most of the assignments goign to Cluster 4. Both black and green observations are assigned into Cluster 2. As I noted above, this is probably due to k-means classifying noise and pushing the observations into a centroid's sphere of influence when it doesn;t actually belong there. Finally, all 20 of the red observations are assigned to Cluster 1 which we like to see, given we know that 20 observations belong to each class. 
+
+f. Perform K-means clustering where K=3 on the first two principal component score vectors instead of the raw data.
+
+```{r q2f1}
+set.seed(100)
+pc.mat= cbind(pc.score1,pc.score2)
+set.seed(100)
+km.out=kmeans(pc.mat,3,nstart=20)
+plot(x,col=which,pch=19)
+points(x, col=km.out$cluster, cex=2,pch=1,lwd=2)
+```
+\newpage
+Calculate a table of labels versus cluster numbers, to reveal the spread
+
+```{r q2f2}
+cluster.labels = km.out$cluster
+table(data.frame(which, cluster.labels))
+```
+
+Running k-means on the princpal component score vectors works well. When we plotted our first two principal compoent score vectors they showed very nice separation over the classes so we'd expect k-means to perform well as long as the number of clusters matched the true number of classes. 
+
+Let's see what happens if we ask for 4 clusters on the principal component score vectors. 
+
+```{r q2f3}
+set.seed(100)
+pc.mat= cbind(pc.score1,pc.score2)
+set.seed(100)
+km.out=kmeans(pc.mat,4,nstart=20)
+cluster=km.out$cluster
+table(data.frame(class.labels, cluster))
+```
+
+Red observations are split between clusters two and four while the remaining observations are assigned very accurately. 
+
+\newpage
+g. Perform K-means clustering with K=3 on data after scaling each variable to have standard deviation one. Compare with results obtained in part c.
+
+
+```{r q2g1}
+set.seed(100)
+scaledX = scale(x,scale=TRUE)
+km.out=kmeans(scaledX,3,nstart=20)
+plot(x,col=km.out$cluster,cex=2,pch=1,lwd=2)
+points(x,col=which,pch=19)
+points(x,col=c(1,2,3)[which],pch=19)
+```
+
+Calculate a table of labels versus cluster numbers, to reveal the spread
+
+```{r q2g2}
+cluster.labels = km.out$cluster
+table(data.frame(which, cluster.labels))
+```
+
+These results are exactly the same as those of part c as I'd expect since the data I have generated are all measured on the same scale, i.e. random normal real numbers. But we might want to scale the variables to have standard deviation one if they are measured on different scales; otherwise, the choice of units (e.g. inches versus miles) for a particular variable would affect the clustering.
+\newpage
+
+#Question 3
+
+```{r q3setup}
+library(randomForest)
+setwd("~/Downloads/")
+load("body.Rdata")
+set.seed(100)
+n = nrow(Y)
+train = sample(n, 307) 
+test = -train
+body.test=Y[test ,"Weight"]
+```
+
+a.
+```{r q3a}
+#bagging
+bag.body=randomForest(Y$Weight~.,data=X,subset=train, mtry=21,importance =TRUE, xtest=X[test,], ytest=Y$Weight[test],type=regression)
+train.mse.bag = bag.body$mse
+test.mse.bag = bag.body$test$mse
+
+#randomForest; following book in choosing number of predictors to use - ISLR suggests p/3 for #regression 
+rf.body=randomForest(Y$Weight~.,data=X,subset=train, mtry=7,importance =TRUE, xtest=X[test,],ytest=Y$Weight[test],type=regression)
+train.mse.rf = rf.body$mse
+test.mse.rf = rf.body$test$mse
+
+#plot test mse bagging and random forest as a function of number of trees
+plot(test.mse.bag,type="s", col="black",ylim=c(5,30), main="Test MSE on Body Data Set", xlab="Number of Trees", ylab="Test MSE")
+lines(test.mse.rf, type="s",col="orange")
+legend("topright", legend=c("Test: Bagging", "Test: Random Forest"), lty=c(1,1), col=c("black", "orange"))
+```
+
+
+b.
+```{r q3b1}
+rf.body$importance[order(-rf.body$importance[,1]), ]
+```
+
+Waist girth, chest girth, shoulder girth, and forearm girth are the four most important variables under random forest. 
+
+```{r q3b2}
+bag.body$importance[order(-bag.body$importance[,1]), ]
+```
+
+Waist girth, chest girth, knee girth, and hip girth are the four most important variables under random forest. The top two variables are the same under both approaches.
+
+Another way to demonstrate this is to show a barplot of variable importance. The following plots show the mean decrease in MSE of out-of-bag samples expressed relative to the maximum. I like this approach better since it gives our audience a better sense of what's important and what's trivial. 
+
+```{r q3b3}
+mse.rf = rf.body$importance[order(-rf.body$importance[,1]), 2]
+mse.bag = bag.body$importance[order(-bag.body$importance[,1]), 2]
+mse.rf = 100*(mse.rf/max(mse.rf))
+mse.rf.names = names(mse.rf)
+mse.bag = 100*(mse.bag/max(mse.bag))
+mse.bag.names = names(mse.bag)
+par(mfrow=c(1,2))
+par(mar=c(5,8,4,2))
+par(las=2)
+barplot(mse.rf, main="Random Forest", horiz=TRUE, names.arg=mse.rf.names, cex.names=0.8, col="red")
+barplot(mse.bag, main="Bagging", horiz=TRUE, names.arg=mse.bag.names, cex.names=0.8, col="orange")
+```
+
+c.
+
+My results for the test errors for the three methods I evaluated in problem 4f of Homework 3 were:
+
+Backward Stepwise:     Test MSE: 9.3  (solutions 8.63 for Forward) \newline
+PCR:                   Test MSE: 9.2  (solutions 9.27) \newline
+PLS:                   Test MSE: 8.59 (solutions: 8.65) \newline
+
+```{r q3c}
+#Test MSE for Random Forest with 500 trees
+test.mse.rf[500]
+```
+
+The test MSE for random forest is comparable with the results from the other three methods used in the last problem set but it actually has the worst score in the group.
+
+.d
+
+Looking at the Test MSE plot from part a it does seem as if mse decreases slightly as the number of trees grow. Below I zoom in on a subset of trees in order to eliminate the distortion caused by the intial dropoff in MSE.
+
+
+```{r q3d1}
+min(test.mse.rf)
+test.mse.rf[500]
+plot(test.mse.rf[100:500],xaxt="n",type="s",xlab="Number of Trees")
+axis(1, at=seq(0,400, by=25), labels=seq(100,500, by=25))
+```
+
+It looks like further improvement might be had if we were to increase the number of trees once we move in a bit but random forests average over many trees (expected variance for a random variable decreases as the square root of the sample size) and at a certain point any gains from larger samples will be eoutweighed by the cost of obtaining those observations and the time spent doing additional computation.
+
+Additionally we don't always have test data in the world and we must choose the number of trees based off of our training data.
+
+```{r q3d2}
+#plot the training mse for random forest
+plot(test.mse.bag,type="s", col="blue",ylim=c(5,30), main="Train MSE on Body Data Set", xlab="Number of Trees", ylab="Train MSE")
+lines(train.mse.rf, type="s",col="red")
+legend("topright", legend=c("Train: Bagging", "Train: Random Forest"), lty=c(1,1), col=c("blue", "red"))
+```
+
+It looks like there's no need to increase the number of trees since the training mse levels off after approximately 100 trees, but the scale is distorted due to the massive initial drop in training mse so I'll narrow in a bit. 
+
+```{r q3d3}
+min.train.mse = which(train.mse.rf==min(train.mse.rf))
+train.mse.rf[min.train.mse]
+plot(train.mse.rf[100:500],xaxt="n",type="s",main="Train MSE on Body Data Set",xlab="Number of Trees")
+axis(1, at=seq(0,400, by=25), labels=seq(100,500, by=25))
+abline(v=min.train.mse-100, col = "red", type="l", lty=3, lwd=1)
+```
+
+The minimum mse is at 326 trees - highlighted as the vertical dashed red line in the plot above. We could also perform cross-validation to see if this synchs up with our results above.
+
+```{r q3d4}
+rf.body=randomForest(Y$Weight~.,data=X,subset=train, mtry=7, cross=10)
+train.mse.rf = rf.body$mse
+par(mfrow=c(1,1))
+min.train.mse = which(train.mse.rf==min(train.mse.rf))
+train.mse.rf[min.train.mse]
+plot(train.mse.rf[100:500],xaxt="n",type="s",main="Train MSE on Body Data Set with CV, k=10",xlab="Number of Trees")
+axis(1, at=seq(0,400, by=25), labels=seq(100,500, by=25))
+abline(v=min.train.mse-100, col = "red", type="l", lty=3, lwd=1)
+min.train.mse
+```
+
+With cross validation we see a minimum MSE at 235 trees. There doesn't seem to be much point using more than 500 trees. In fact, the models suggest that about half that amount would suffice.  
+\newpage
+#Question 4
+
+```{r q4setup}
+library(e1071)
+options(digits=2)
+```
+
+a and b.
+```{r q4ab}
+x=matrix(c(3,2,4,1,2,4,4,4,2,4,4,1,3,1),7,2)
+y=rep(c(-1,1),c(4,3))
+dat=data.frame(x,y=as.factor(y))
+svmfit=svm(y~.,data=dat,kernel="linear",cost=10, scale=FALSE)
+
+#make our own grid to improve on plot function
+make.grid=function(x,n=75){
+    grange=apply(x,2,range)
+    x1=seq(from=grange[1,1],to=grange[2,1],length=n)
+    x2=seq(from=grange[1,2],to=grange[2,2],length=n)
+    expand.grid(X1=x1,X2=x2)
+}
+#show hyperplabe classifier and support vectors
+xgrid=make.grid(x)
+ygrid=predict(svmfit,xgrid)
+
+#extract coefficients and plot margins
+beta=drop(t(svmfit$coefs)%*%x[svmfit$index,])
+beta0=svmfit$rho# rho should be negative
+plot(xgrid,col=c("red","blue")[as.numeric(ygrid)],pch=20,cex=.2)
+points(x,col=y+3,pch=19)
+points(x[svmfit$index,],pch=5,cex=2)
+abline(beta0/beta[2],-beta[1]/beta[2])
+abline((beta0-1)/beta[2],-beta[1]/beta[2],lty=2)
+abline((beta0+1)/beta[2],-beta[1]/beta[2],lty=2)
+
+intercept = beta0/beta[2] #svm object rho is negative intercept
+slope = -beta[1]/beta[2]
+
+intercept
+slope
+```
+
+The equation of hyperplane is:  0.5 - X1 + X2 = 0 
+
+c.
+
+The classification rule of the maximal margin classifier is:
+
+Classify to Red if 0.5 - X1 + X2 > 0 and classify to Blue otherwise
+
+
+d.
+```{r q4d}
+
+#The margin can be found via geometry, trig, or even the shortcut given in ISLR once we've #normalized the non-zero betas. Please see the insert on the next page for my handwritten work.
+
+margin = 0.5/sqrt(2)
+margin
+```
+
+e.
+
+The svm() package indicates there are only three and it seems clear that yhe minimum number of support vectors necessary would be three but in my office hour session it was suggested we include all four in the set: {(2,1),(4,3),(2,2),(4,4)}.
+
+f.
+
+A slight movement of the seventh observation would would not affect the maximal margin classifier. This is becuase the maximal margin hyperplane is based upon a subset of the data points, in this case {(2,1),(4,3),(2,2),(4,4)}. As long as the movement of the seventh observation was small enough that it did not cross the boundary set by the margin, the maximal margin hyperplane would not be affected.
+
+g.
+
+``` {r q4g, echo=FALSE}
+xgrid=make.grid(x)
+ygrid=predict(svmfit,xgrid)
+
+#extract coefficients and plot margins
+beta=drop(t(svmfit$coefs)%*%x[svmfit$index,])
+beta0=svmfit$rho# rho should be negative
+plot(xgrid,col=c("red","blue")[as.numeric(ygrid)],pch=20,cex=.2)
+points(x,col=y+3,pch=19)
+points(x[svmfit$index,],pch=5,cex=2)
+abline(beta0/beta[2],-beta[1]/beta[2])
+abline((beta0-1)/beta[2],-beta[1]/beta[2],lty=2)
+abline((beta0+1)/beta[2],-beta[1]/beta[2],lty=2)
+abline(12,-4,col="3")
+```
+
+\newpage
+
+h.
+
+Any point that crosses the maximal margin classifier will do.
+
+``` {r q4h, echo=FALSE}
+plot(xgrid,col=c("red","blue")[as.numeric(ygrid)],pch=20,cex=.2)
+points(x,col=y+3,pch=19)
+points(x[svmfit$index,],pch=5,cex=2)
+abline(beta0/beta[2],-beta[1]/beta[2])
+abline((beta0-1)/beta[2],-beta[1]/beta[2],lty=2)
+abline((beta0+1)/beta[2],-beta[1]/beta[2],lty=2)
+points(3.5,2,col=3,pch=19)
+points(3.5,2,col=3,pch=1,cex=3)
+```
+
